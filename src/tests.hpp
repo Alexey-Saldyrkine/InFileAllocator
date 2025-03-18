@@ -44,20 +44,8 @@ TEST(HelperFuncs,sizeToPowIndex) {
 	ASSERT_EQ(sizeToPowIndex<18446744073709551615ul>, 64u);
 }
 
-TEST(MemBlock,testAccessSize) {
-	ASSERT_EQ(sizeof(MemBlock<8>().asPointer), 8ul);
-	ASSERT_EQ(sizeof(MemBlock<8>().asData), 8ul);
-	ASSERT_EQ(sizeof(MemBlock<16>().asPointer), 8ul);
-	ASSERT_EQ(sizeof(MemBlock<16>().asData), 16ul);
-	ASSERT_EQ(sizeof(MemBlock<32>().asPointer), 8ul);
-	ASSERT_EQ(sizeof(MemBlock<32>().asData), 32ul);
-	ASSERT_EQ(sizeof(MemBlock<4611686018427387904>().asPointer), 8ul);
-	ASSERT_EQ(sizeof(MemBlock<4611686018427387904>().asData),
-			4611686018427387904ul);
-}
-
 TEST(MemBlock,size) {
-	ASSERT_EQ(sizeof(MemBlock<8> ), 8u);
+	ASSERT_EQ(sizeof(MemBlock<32> ), 32u);
 	ASSERT_EQ(sizeof(MemBlock<64> ), 64u);
 	ASSERT_EQ(sizeof(MemBlock<4096> ), 4096u);
 }
@@ -65,34 +53,44 @@ TEST(MemBlock,size) {
 TEST(MemBlockStoragePage,elements) {
 	ASSERT_EQ(MemBlockStoragePage<4096>::pageCount, 1u);
 	ASSERT_EQ(MemBlockStoragePage<2 * 4096>::pageCount, 2u);
-	ASSERT_EQ(MemBlockStoragePage<16>::pageCount, 1u);
-	ASSERT_EQ(MemBlockStoragePage<16>::blockCount, pageSize / 16u);
+	ASSERT_EQ(MemBlockStoragePage<32>::pageCount, 1u);
+	ASSERT_EQ(MemBlockStoragePage<32>::blockCount, pageSize / 32u);
+}
+
+TEST(BuddyBlock,Adress) {
+	ASSERT_EQ(
+			UnusedMemBlock<32768>::interBuddyAdress(
+					reinterpret_cast<UnusedMemBlock<32768>*>(0x500000001000)),
+			reinterpret_cast<MemBlock<32768>*>(0x500000009000));
 }
 
 void testSizeToIndexRTHelper(size_t size, unsigned int index) {
 	ASSERT_EQ(sizeToIndex(size), index);
-	ASSERT_TRUE(size <= 2ul << index);
+	ASSERT_TRUE(size <= 2ul << (index + IndexOffset));
 }
 
 TEST(SizeToIndex,runTime) {
-	testSizeToIndexRTHelper(1, 3);
-	testSizeToIndexRTHelper(8, 3);
-	testSizeToIndexRTHelper(9, 4);
-	testSizeToIndexRTHelper(16, 5);
-	testSizeToIndexRTHelper(63, 6);
-	testSizeToIndexRTHelper(64, 7);
+	testSizeToIndexRTHelper(1, 0);
+	testSizeToIndexRTHelper(8, 0);
+	testSizeToIndexRTHelper(31, 0);
+	testSizeToIndexRTHelper(32, 1);
+	testSizeToIndexRTHelper(63, 1);
+	testSizeToIndexRTHelper(64, 2);
+	testSizeToIndexRTHelper(127, 2);
+	testSizeToIndexRTHelper(128, 3);
 
 }
 
 TEST(objectManager,simpleTypes) {
-	int fd = open("example1.txt", O_CREAT | O_RDWR, 0777);
+	int fd = open("testFile.txt", O_CREAT | O_RDWR, 0777);
 	if (fd == -1) {
 		fprintf(stderr, "mmap [mapHeader] failed: %s\n", strerror(errno));
 	}
 	ASSERT_NE(fd, -1);
 	void *ptr = (void*) 0x500000000000;
-	size_t memsz = 4096 * 10;
+	size_t memsz = 4096 * 32;
 	objectManager manager(fd, ptr, memsz);
+	manager.resetFile();
 
 	bool &bool1 = manager.aquire<bool>(0, false);
 	bool1 = !bool1;
@@ -175,22 +173,23 @@ struct autoFd {
 			fprintf(stderr, "mmap [mapHeader] failed: %s\n", strerror(errno));
 		}
 	}
-	~autoFd(){
+	~autoFd() {
 		close(fd);
 	}
-	operator int() const{
+	operator int() const {
 		return fd;
 	}
 };
 
 TEST(allocator,basicAlloc) {
-	autoFd fd("basicAllocation.txt");
+	autoFd fd("testFile.txt");
 	ASSERT_NE(fd, -1);
 	void *ptr = (void*) 0x500000000000;
-	size_t memsz = 4096 * 10;
+	size_t memsz = 4096 * 32;
 	TesterType::setup(ptr, memsz);
 
 	FileMemoryManagerHandler handler(fd, ptr, memsz);
+	handler.getManager()->reset();
 	fileAllocator<char> alloc(handler.getManager());
 
 	char *alc1 = alloc.allocate(1);
@@ -201,24 +200,20 @@ TEST(allocator,basicAlloc) {
 	testAdrs(alc1);
 	alloc.deallocate(alc2, 15);
 
-	EXPECT_THROW({
-		try{
-			alloc.allocate(100*100*100);
-		}catch(const std::runtime_error e){
-			EXPECT_STRCASEEQ("out of mem",e.what());
-			throw;
-		}
-	},std::runtime_error);
+	EXPECT_THROW(
+			{ try{ alloc.allocate(100*100*100); }catch(const std::runtime_error e){ EXPECT_STRCASEEQ("out of mem, remaning mem: 65536, requested mem: 1048576",e.what()); throw; } },
+			std::runtime_error);
 
 }
 
 TEST(objectManager,simpleVec) {
-	autoFd fd ("example2.txt");
+	autoFd fd("testFile.txt");
 	ASSERT_NE(fd, -1);
 	void *ptr = (void*) 0x500000000000;
-	size_t memsz = 4096 * 10;
+	size_t memsz = 4096 * 32;
 	TesterType::setup(ptr, memsz);
 	objectManager manager(fd, ptr, memsz);
+	manager.resetFile();
 
 	using vecT = std::vector<TesterType,fileAllocator<int>>;
 
@@ -241,19 +236,17 @@ TEST(objectManager,simpleVec) {
 		v.testSelfAddress();
 	}
 
-	if (vec1.size() > 20) {
-		manager.resetFile();
-	}
 }
 
 TEST(objectManager,simpleVecStressTest) {
 	for (int i = 0; i < 10000; ++i) {
-		autoFd fd("example3.txt");
+		autoFd fd("testFile.txt");
 		ASSERT_NE(fd, -1);
 		void *ptr = (void*) 0x500000000000;
-		size_t memsz = 4096 * 100;
+		size_t memsz = 4096 * 32;
 		TesterType::setup(ptr, memsz);
 		objectManager manager(fd, ptr, memsz);
+		manager.resetFile();
 
 		using vecT = std::vector<TesterType,fileAllocator<int>>;
 
@@ -282,26 +275,21 @@ TEST(objectManager,simpleVecStressTest) {
 		}
 	}
 
-	autoFd fd("example3.txt");
-	ASSERT_NE(fd, -1);
-	void *ptr = (void*) 0x500000000000;
-	size_t memsz = 4096 * 100;
-	objectManager manager(fd, ptr, memsz);
-	manager.resetFile();
-
 }
 
 TEST(objectManager,compoundVec) {
-	using vecT = std::vector<std::vector<TesterType,fileAllocator<int>>,fileAllocator<std::vector<TesterType,fileAllocator<int>>>>;
+	using vecT = std::vector<TesterType,fileAllocator<int>>;
+	using vec2T = std::vector<vecT,fileAllocator<vecT>>;
 
-	autoFd fd("example4.txt");
+	autoFd fd("testFile.txt");
 	ASSERT_NE(fd, -1);
 	void *ptr = (void*) 0x500000000000;
-	size_t memsz = 4096 * 100;
+	size_t memsz = 4096 * 32;
 	TesterType::setup(ptr, memsz);
 	objectManager manager(fd, ptr, memsz);
+	manager.resetFile();
 
-	vecT &vec1 = manager.aquire<vecT>(0);
+	vec2T &vec1 = manager.aquire<vec2T>(0);
 
 	TesterType::snapShotCounter();
 	for (int j = 0; j < 5; j++) {
@@ -312,9 +300,7 @@ TEST(objectManager,compoundVec) {
 	}
 	ASSERT_EQ(25ul, TesterType::snapShotDiff());
 
-	if (vec1.size() > 15) {
-		manager.resetFile();
-	}
 }
+
 
 }

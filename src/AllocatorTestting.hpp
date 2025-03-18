@@ -1,5 +1,5 @@
-#ifndef INFILEALLOCATOR_HPP_
-#define INFILEALLOCATOR_HPP_
+#ifndef INFILEALLOCATORTESTING_HPP_
+#define INFILEALLOCATORTESTING_HPP_
 
 #include <iostream>
 #include <sys/mman.h>
@@ -44,55 +44,11 @@ template<>
 constexpr bool isPowerOf2<0> = false;
 
 template<size_t size>
-union MemBlock;
-
-template<size_t size>
-struct UnusedMemBlock {
-	static inline constexpr size_t marker1Hash = 5747124830538865000;
-	size_t unusedMarker1 = marker1Hash;
-	MemBlock<size> *next = nullptr;
-	MemBlock<size> *prev = nullptr;
-	size_t spanPower = 0;
-
-	bool isNotUsed() {
-		return unusedMarker1 == marker1Hash; // && unusedMarker2 == marker2Hash;
-	}
-
-	void setUnused(size_t spanPow) {
-		next = nullptr;
-		prev = nullptr;
-		unusedMarker1 = marker1Hash;
-		spanPower = spanPow;
-	}
-
-	void setUsed() {
-		unusedMarker1 = 0;
-		next = nullptr;
-		prev = nullptr;
-		spanPower = 0;
-	}
-
-	static MemBlock<size>* interBuddyAdress(UnusedMemBlock<size> *ptr) {
-		return reinterpret_cast<MemBlock<size>*>(reinterpret_cast<size_t>(ptr)
-				^ static_cast<size_t>(1) << sizeToPowIndex<size - 1> );
-	}
-
-	MemBlock<size>* buddyAdress() {
-		return interBuddyAdress(this);
-	}
-
-};
-
-template<size_t size>
 union MemBlock {
 	Forceduint8_t asData[size];
-	UnusedMemBlock<size> asUnused;
-	static_assert(size >=sizeof(UnusedMemBlock<size>));
+	MemBlock *asPointer;
+	static_assert(size >=sizeof(MemBlock*));
 	static_assert(isPowerOf2<size>);
-
-	std::pair<MemBlock<size / 2>*, MemBlock<size / 2>*> split() {
-		return {reinterpret_cast<MemBlock<size/2>*>(&asData[0]), reinterpret_cast<MemBlock<size/2>*>(&asData[size/2])};
-	}
 };
 
 template<size_t elementSize>
@@ -109,12 +65,12 @@ struct MemBlockStoragePage {
 };
 
 void ensureFileSize(const int &_fd, const size_t &_size) {
-	struct stat st;
-	fstat(_fd, &st);
-	size_t fileSize = st.st_size;
-	if (fileSize < _size) {
-		ftruncate(_fd, _size);
-	}
+//	struct stat st;
+//	fstat(_fd, &st);
+//	size_t fileSize = st.st_size;
+//	if (fileSize < _size) {
+//		ftruncate(_fd, _size);
+//	}
 }
 
 struct MemoryFileHandler {
@@ -129,17 +85,14 @@ struct MemoryFileHandler {
 
 	void reset() {
 		size = pageSize;
-		ftruncate(fd, pageSize);
+		//ftruncate(fd,pageSize);
 	}
 
 	void* getFreePages(const size_t &pageCount) {
 		if (mappedMemSize + pageSize - size < pageCount * pageSize) {
-			std::string str = "out of mem, remaning mem: ";
-			str += std::to_string(mappedMemSize + pageSize - size)
-					+ ", requested mem: " + std::to_string(pageCount * pageSize);
-			throw std::runtime_error(str);
+			throw std::runtime_error("out of mem");
 		}
-		void *retPtr = static_cast<void*>(dataAdress + size);
+		void *retPtr = static_cast<void*>(new char[pageCount * pageSize]);
 		size += pageSize * pageCount;
 		ensureFileSize(fd, size);
 		return retPtr;
@@ -152,106 +105,80 @@ struct SpanOfSize {
 	static constexpr size_t blockSize = pow2<powerIndex>;
 	MemBlock<blockSize> *first = nullptr;
 	MemBlock<blockSize> *last = nullptr;
+	MemBlockStoragePage<blockSize> *freePage = nullptr;
+	size_t freePageIndex = 0;
 
 	void reset() {
 		first = nullptr;
 		last = nullptr;
+		freePage = nullptr;
+		freePageIndex = 0;
 	}
 
-	SpanOfSize<powerIndex + 1>& nextSpan() {
-		return *reinterpret_cast<SpanOfSize<powerIndex + 1>*>(this + 1);
+	MemBlock<blockSize>& getFreeBlock() {
+		return (*freePage)[freePageIndex++];
 	}
 
-	MemBlock<blockSize>* getFreeBlock(MemoryFileHandler &fileHandler) {
-		if constexpr (powerIndex >= 16) {
-			return static_cast<MemBlock<blockSize>*>(fileHandler.getFreePages(
-					MemBlockStoragePage<blockSize>::pageCount));
-		} else {
-			MemBlock<blockSize * 2> *dualBLock = reinterpret_cast<MemBlock<
-					blockSize * 2>*>(nextSpan().getBlock(fileHandler));
-			auto blockPair = dualBLock->split();
-			putBlock(blockPair.second);
-			blockPair.first->asUnused.setUsed();
-			return blockPair.first;
-		}
+	void getNewFreePage(MemoryFileHandler &fileHandler) {
+		freePage =
+				static_cast<MemBlockStoragePage<blockSize>*>(fileHandler.getFreePages(
+						MemBlockStoragePage<blockSize>::pageCount));
+		freePageIndex = 0;
 	}
 
 	Forceduint8_t* getBlock(MemoryFileHandler &fileHandler) {
-
-		if (first == nullptr) {
-			MemBlock<blockSize> &retBlock = *getFreeBlock(fileHandler);
-			retBlock.asUnused.setUsed();
-			return retBlock.asData;
+		if (isFreePageEmpty()) {
+			getNewFreePage(fileHandler);
 		}
 		if (first == last) {
-				MemBlock<blockSize> *retBlock = first;
-				first = nullptr;
-				last = nullptr;
-				retBlock->asUnused.setUsed();
-				return retBlock->asData;
-
+			if (first == NULL) {
+				Forceduint8_t *data = getFreeBlock().asData;
+				return data;
+			} else {
+				Forceduint8_t *data = first->asData;
+				first = NULL;
+				last = NULL;
+				return data;
+			}
+		} else {
+			Forceduint8_t *data = first->asData;
+			first = first->asPointer;
+			return data;
 		}
-
-			MemBlock<blockSize> *retBlock = first;
-			first = retBlock->asUnused.next;
-			first->asUnused.prev = nullptr;
-			retBlock->asUnused.setUsed();
-			return retBlock->asData;
+	}
+	void putBlock(MemBlock<blockSize> *block) {
+		if (last != NULL) {
+			last->asPointer = block;
+			last = block;
+		} else {
+			last = block;
+			block->asPointer = NULL;
+		}
+		if (first == NULL) {
+			first = last;
+		}
 
 	}
-
-	void putBlock(MemBlock<blockSize> *block) {
-		if (!block->asUnused.isNotUsed()) {
-			block->asUnused.setUnused(powerIndex);
-		} else {
-			block->asUnused.spanPower = powerIndex;
+	bool isFreePageEmpty() {
+		if (freePage == NULL) {
+			return true;
 		}
-
-		if constexpr (powerIndex < 16) {
-			if (auto *buddyPtr = block->asUnused.buddyAdress(); (buddyPtr->asUnused.spanPower
-					== powerIndex) && buddyPtr->asUnused.isNotUsed()) {
-				auto &buddyBlock = buddyPtr->asUnused;
-				if (buddyBlock.prev != nullptr)
-					buddyBlock.prev->asUnused.next = buddyBlock.next;
-				if (buddyBlock.next != nullptr)
-					buddyBlock.next->asUnused.prev = buddyBlock.prev;
-
-				auto *leftBlock = (block < buddyPtr ? block : buddyPtr);
-				auto *rightBlock = (block > buddyPtr ? block : buddyPtr);
-				rightBlock->asUnused.setUsed();
-				nextSpan().putBlock(
-						reinterpret_cast<MemBlock<blockSize * 2>*>(leftBlock));
-				return;
-			}
+		if (freePageIndex < MemBlockStoragePage<blockSize>::blockCount) {
+			return false;
 		}
-
-		if (first != nullptr) {
-			last->asUnused.next = block;
-			block->asUnused.prev = last;
-			block->asUnused.next = nullptr;
-			last = block;
-		} else {
-			block->asUnused.next = nullptr;
-			block->asUnused.prev = nullptr;
-			first = block;
-			last = block;
-		}
-
+		return true;
 	}
 };
 
-constexpr size_t IndexOffset = 5;
-
 template<size_t Index>
 Forceduint8_t* allocateI(void *spanPtr, MemoryFileHandler &fileHandler) {
-	return static_cast<SpanOfSize<Index + IndexOffset>*>(spanPtr)->getBlock(
-			fileHandler);
+	return static_cast<SpanOfSize<Index + 3>*>(spanPtr)->getBlock(fileHandler);
 }
 
 template<size_t Index>
 void deallocateI(void *spanPtr, void *ptr) {
-	static_cast<SpanOfSize<Index + IndexOffset>*>(spanPtr)->putBlock(
-			static_cast<MemBlock<pow2<Index + IndexOffset>>*>(ptr));
+	static_cast<SpanOfSize<Index + 3>*>(spanPtr)->putBlock(
+			static_cast<MemBlock<pow2<Index + 3>>*>(ptr));
 }
 
 template<typename T>
@@ -269,15 +196,14 @@ struct SpanListHelper<std::integer_sequence<size_t, Is...>> {
 
 // compiler dependent
 unsigned int sizeToIndex(const size_t size) {
-	if (size >= pow2<IndexOffset>) {
-		return 64 - __builtin_clzll(size) - IndexOffset;
+	if (size > 8) {
+		return 64 - __builtin_clzll(size);
 	} else {
-		return 0;
+		return 3;
 	}
 }
 
-class SpanList: public SpanListHelper<
-		std::make_integer_sequence<size_t, 63 - IndexOffset>> {
+class SpanList: public SpanListHelper<std::make_integer_sequence<size_t, 60>> {
 
 	struct Dummy {
 		static_assert(sizeof(SpanOfSize<1>)==sizeof(SpanOfSize<20>));
@@ -287,17 +213,17 @@ class SpanList: public SpanListHelper<
 
 public:
 	Forceduint8_t* allocate(size_t size, MemoryFileHandler &fileHandler) {
-		unsigned int index = sizeToIndex(size);
+		unsigned int index = sizeToIndex(size) - 3;
 		return allocByIndx[index](&spans[index], fileHandler);
 	}
 
 	void deallocate(void *ptr, size_t size) {
-		unsigned int index = sizeToIndex(size);
+		unsigned int index = sizeToIndex(size) - 3;
 		deallocByIndx[index](&spans[index], ptr);
 	}
 
 	void resetAll() {
-		for (size_t i = 0; i < 63 - IndexOffset; ++i) {
+		for (int i = 0; i < 60; ++i) {
 			reinterpret_cast<SpanOfSize<1>*>(&spans[i])->reset();
 		}
 	}
@@ -372,7 +298,7 @@ public:
 
 struct FileMemoryManagerSharedPtrDeleter {
 	void operator()(FileMemoryManager *ptr) {
-		munmap(ptr, ptr->getMemSize());
+		//munmap(ptr, ptr->getMemSize());
 	}
 };
 
@@ -383,26 +309,26 @@ class FileMemoryManagerHandler {
 	void mapHeader(int fd, void *adrs, size_t mappedMemSize) {
 		ensureFileSize(fd, pageSize);
 
-		FileMemoryManager *adr = static_cast<FileMemoryManager*>(mmap(adrs,
-				mappedMemSize,
-				PROT_READ | PROT_WRITE,
-				MAP_SHARED | MAP_NORESERVE, fd, 0));
+		/*FileMemoryManager *adr = static_cast<FileMemoryManager*>(mmap(adrs,
+		 mappedMemSize,
+		 PROT_READ | PROT_WRITE,
+		 MAP_SHARED | MAP_NORESERVE, fd, 0));
 
-		if (adr == MAP_FAILED) {
-			fprintf(stderr, "mmap [mapHeader] failed: %s\n", strerror(errno));
-			throw std::runtime_error("failed to map header");
-		}
+		 if (adr == MAP_FAILED) {
+		 fprintf(stderr, "mmap [mapHeader] failed: %s\n", strerror(errno));
+		 throw std::runtime_error("failed to map header");
+		 }
 
-		if (adr != adrs) {
-			//std::cerr << "adrs = " << (void*) adr << std::endl;
-			//throwError("[mapHeader]did not map to dedicated adrs");
-			throw std::runtime_error("failed to map to given adrs");
-		}
+		 if (adr != adrs) {
+		 //std::cerr << "adrs = " << (void*) adr << std::endl;
+		 //throwError("[mapHeader]did not map to dedicated adrs");
+		 throw std::runtime_error("failed to map to given adrs");
+		 }*/
 	}
 
 public:
 	FileMemoryManagerHandler(int fd, void *adrs, size_t mappedMemSize) :
-			manager(static_cast<FileMemoryManager*>(adrs),
+			manager(static_cast<FileMemoryManager*>( reinterpret_cast<FileMemoryManager*>(new char[pageSize])),
 					FileMemoryManagerSharedPtrDeleter()) {
 		mapHeader(fd, adrs, mappedMemSize);
 		if (!manager->isConstructed()) {
@@ -508,4 +434,27 @@ constexpr bool operator!=(const fileAllocator<T> &a,
 }
 }
 
-#endif /* INFILEALLOCATOR_HPP_ */
+void AllocatorExample() {
+
+	inFileAllocator::detail::FileMemoryManagerHandler handler(3, 0,
+			inFileAllocator::detail::pageSize * 100);
+	handler.setDefCstr();
+
+	inFileAllocator::detail::fileAllocator<char> alloc;
+
+	char *ptr = alloc.allocate(256);
+	alloc.deallocate(ptr, 256);
+
+	ptr = alloc.allocate(256);
+	alloc.deallocate(ptr, 256);
+
+}
+
+int main(int argc, char **argv) {
+	AllocatorExample();
+	return 0;
+}
+
+
+
+#endif /* INFILEALLOCATORTESTING_HPP_ */

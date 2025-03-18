@@ -53,6 +53,7 @@ public:
 
 	void resetFile(){
 		handler.getManager()->reset();
+		obj = handler.getManager()->getObj<mapT>();
 	}
 
 	FileMemoryManagerHandler& getHandler(){
