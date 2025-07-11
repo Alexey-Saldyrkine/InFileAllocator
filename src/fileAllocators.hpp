@@ -1,6 +1,8 @@
 #pragma once
 #include "buddyAllocator.hpp"
 #include <sys/stat.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 namespace inFileAllocatorNS::detail {
 
@@ -74,7 +76,7 @@ void destroyAnonymousFileAllocatorManager(byteT *ptr =
 }
 
 template<typename T, template<size_t> typename policy>
-struct inAnonymousFileAllocator: public std::pointer_traits<T*> {
+struct AnonymousFileAllocator: public std::pointer_traits<T*> {
 	anonymousFileAllocatorManager<policy> *allocPtr;
 
 	using value_type = T;
@@ -84,20 +86,20 @@ struct inAnonymousFileAllocator: public std::pointer_traits<T*> {
 	using difference_type = typename std::pointer_traits<pointer>::difference_type;
 	template<typename U>
 	struct rebind {
-		using other = inAnonymousFileAllocator<U,policy>;
+		using other = AnonymousFileAllocator<U,policy>;
 	};
 	using propagate_on_container_copy_assignment = std::true_type;
 	using propagate_on_container_move_assignment = std::true_type;
 	using propagate_on_container_swap = std::true_type;
 	using is_always_equal = std::false_type;
 
-	inAnonymousFileAllocator(anonymousFileAllocatorManager<policy> *ptr) :
+	AnonymousFileAllocator(anonymousFileAllocatorManager<policy> *ptr) :
 			allocPtr(ptr) {
 	}
 
 	template<typename U>
-	constexpr inAnonymousFileAllocator(
-			const inAnonymousFileAllocator<U, policy> &other) noexcept :
+	constexpr AnonymousFileAllocator(
+			const AnonymousFileAllocator<U, policy> &other) noexcept :
 			allocPtr(other.allocPtr) {
 	}
 
@@ -122,14 +124,14 @@ struct inAnonymousFileAllocator: public std::pointer_traits<T*> {
 };
 
 template<typename T, typename U, template<size_t> typename policy>
-bool operator==(const inAnonymousFileAllocator<T, policy> &a,
-		const inAnonymousFileAllocator<U, policy> &b) {
+bool operator==(const AnonymousFileAllocator<T, policy> &a,
+		const AnonymousFileAllocator<U, policy> &b) {
 	return a.allocPtr == b.allocPtr;
 }
 
 template<typename T, typename U, template<size_t> typename policy>
-bool operator!=(const inAnonymousFileAllocator<T, policy> &a,
-		const inAnonymousFileAllocator<U, policy> &b) {
+bool operator!=(const AnonymousFileAllocator<T, policy> &a,
+		const AnonymousFileAllocator<U, policy> &b) {
 	return !(a == b);
 }
 
@@ -309,5 +311,10 @@ bool operator!=(const inFileAllocator<T, policy> &a,
 	return !(a == b);
 }
 
+}
+
+namespace inFileAllocatorNS{
+using inFileAllocatorNS::detail::inFileAllocator;
+using inFileAllocatorNS::detail::AnonymousFileAllocator;
 }
 

@@ -8,6 +8,7 @@ struct testPolicyA {
 	static constexpr bool eanbleSpliting = true; //(size >= 9999 ? false : true);
 	static constexpr bool enableCombining = true;
 	static constexpr size_t allocBlockCount = 0;
+	static constexpr bool enableDebug = true;
 };
 
 constexpr int kCount = 30;
@@ -83,6 +84,7 @@ struct testPolicyB {
 			size == 4096 * 4 || size == 4096 || size == 1024 ? false : true);
 	static constexpr bool enableCombining = true;
 	static constexpr size_t allocBlockCount = 0;
+	static constexpr bool enableDebug = true;
 };
 
 TEST(buddyAllocator,disableSplittingAtLevels) {

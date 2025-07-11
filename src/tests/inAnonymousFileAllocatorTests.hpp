@@ -25,7 +25,7 @@ TEST(anonymousFileAllocator,basicUse) {
 		autoGaurd gaurd([]() {
 			destroyAnonymousFileAllocatorManager<testPolicyA>();
 		});
-		inAnonymousFileAllocator<byteT, testPolicyA> alloc(manager);
+		AnonymousFileAllocator<byteT, testPolicyA> alloc(manager);
 		debugLog.clear();
 		buddyAllocatorBlockLog ledger;
 		memChecker memoryCheck;
@@ -74,7 +74,7 @@ TEST(anonymousFileAllocator,basicVectorUse) {
 		destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
 	});
 
-	std::vector<int, inAnonymousFileAllocator<int, fileAllocatorTestPolicy>> vec(
+	std::vector<int, AnonymousFileAllocator<int, fileAllocatorTestPolicy>> vec(
 			manager);
 	for (int i = 0; i < 8000; i++) {
 		vec.push_back(i);
@@ -122,7 +122,7 @@ TEST(anonymousFileAllocator,vectorOfType) {
 			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
 		});
 		srand(k * 8 + 16);
-		std::vector<T, inAnonymousFileAllocator<T, fileAllocatorTestPolicy>> vec(
+		std::vector<T, AnonymousFileAllocator<T, fileAllocatorTestPolicy>> vec(
 				manager);
 
 		for (int i = 0; i < 999; i++) {
@@ -149,7 +149,7 @@ TEST(anonymousFileAllocator,basicMap) {
 	});
 
 	std::map<size_t, size_t, std::less<size_t>,
-			inAnonymousFileAllocator<std::pair<const size_t, size_t>,
+			AnonymousFileAllocator<std::pair<const size_t, size_t>,
 					fileAllocatorTestPolicy>> map(manager);
 
 	for (unsigned int i = 0; i < 8000; i++) {
@@ -174,7 +174,7 @@ TEST(anonymousFileAllocator,mapOfType) {
 		});
 
 		std::map<size_t, selfCheckT, std::less<size_t>,
-				inAnonymousFileAllocator<std::pair<const size_t, selfCheckT>,
+				AnonymousFileAllocator<std::pair<const size_t, selfCheckT>,
 						fileAllocatorTestPolicy>> map(manager);
 		srand(k * 9 + 17);
 		for (unsigned int i = 0; i < 2000; i++) {
@@ -201,7 +201,7 @@ TEST(anonymousFileAllocator,unorderedMapOfType) {
 
 		std::unordered_map<size_t, selfCheckT, std::hash<size_t>,
 				std::equal_to<size_t>,
-				inAnonymousFileAllocator<std::pair<const size_t, selfCheckT>,
+				AnonymousFileAllocator<std::pair<const size_t, selfCheckT>,
 						fileAllocatorTestPolicy>> map(manager);
 		srand(k * 9 + 17);
 		for (unsigned int i = 0; i < 2000; i++) {
@@ -219,7 +219,7 @@ TEST(anonymousFileAllocator,unorderedMapOfType) {
 }
 
 template<typename T>
-using allocT = inAnonymousFileAllocator<T,fileAllocatorTestPolicy>;
+using allocT = AnonymousFileAllocator<T,fileAllocatorTestPolicy>;
 template<typename T>
 using scopedAllocT = std::scoped_allocator_adaptor<allocT<T>>;
 template<typename T>

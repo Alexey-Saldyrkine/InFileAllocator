@@ -3,28 +3,29 @@
 #include <type_traits>
 #include <variant>
 #include <utility>
+#include <scoped_allocator>
+#include <unordered_map>
 
 namespace inFileAllocatorNS::detail {
 
 template<template<size_t> typename policy, typename keyT, typename ... Ts>
-struct anonymousobjectManager {
+struct anonymousObjectManager {
 	using variantT = std::variant<Ts...>;
-	using allocT = std::scoped_allocator_adaptor<inAnonymousFileAllocator<std::pair<const keyT,variantT>,policy>>;
+	using allocT = std::scoped_allocator_adaptor<AnonymousFileAllocator<std::pair<const keyT,variantT>,policy>>;
 	using mapT = std::unordered_map<keyT,variantT,std::hash<size_t>,std::equal_to<size_t>,
 	allocT>;
 	using managerT = anonymousFileAllocatorManager<policy>;
-
+private:
 	managerT *manager;
-
-	operator managerT*() {
-		return manager;
-	}
 
 	mapT*& objPtr() {
 		return *reinterpret_cast<mapT**>(&manager->objManagerPtr);
 	}
-
-	anonymousobjectManager(byteT *ptr) {
+public:
+	operator managerT*() {
+		return manager;
+	}
+	anonymousObjectManager(byteT *ptr) {
 		manager = createAnonymousFileAllocatorManager<policy>(ptr);
 		if (objPtr() == nullptr) {
 			byteT *tmp = manager->allocate(sizeof(mapT));
@@ -32,7 +33,7 @@ struct anonymousobjectManager {
 			objPtr() = reinterpret_cast<mapT*>(tmp);
 		}
 	}
-	~anonymousobjectManager() {
+	~anonymousObjectManager() {
 		manager->unmapPages();
 		destroyAnonymousFileAllocatorManager<policy>(
 				reinterpret_cast<byteT*>(manager));
@@ -43,12 +44,12 @@ struct anonymousobjectManager {
 	}
 
 	template<typename T>
-	inAnonymousFileAllocator<T, policy> getAllocator() {
-		return inAnonymousFileAllocator<T, policy>(manager);
+	AnonymousFileAllocator<T, policy> getAllocator() {
+		return AnonymousFileAllocator<T, policy>(manager);
 	}
 
 	template<typename T>
-	std::scoped_allocator_adaptor<inAnonymousFileAllocator<T, policy>> getScopedAllocator() {
+	std::scoped_allocator_adaptor<AnonymousFileAllocator<T, policy>> getScopedAllocator() {
 		return {getAllocator<T>()};
 	}
 
@@ -58,11 +59,11 @@ struct anonymousobjectManager {
 				std::forward_as_tuple(key),
 				std::forward_as_tuple(std::in_place_type_t<T> { },
 						std::forward<Args>(args)...));
-		return get<T>(pr.first->second);
+		return std::get<T>(pr.first->second);
 	}
 	template<typename T>
 	T& aquire(keyT key) {
-		return get<T>(objPtr()->find(key)->second);
+		return std::get<T>(objPtr()->find(key)->second);
 	}
 
 	void destroy(keyT key) {
@@ -78,13 +79,13 @@ struct persistentObjectManager {
 	using mapT = std::unordered_map<keyT,variantT,std::hash<size_t>,std::equal_to<size_t>,
 	allocT>;
 	using managerT = inFileAllocatorManager<policy>;
-
+private:
 	managerT *manager;
 
 	mapT*& objPtr() {
 		return *reinterpret_cast<mapT**>(&manager->objManagerPtr);
 	}
-
+public:
 	operator managerT*() {
 		return manager;
 	}
@@ -131,11 +132,11 @@ struct persistentObjectManager {
 				std::forward_as_tuple(key),
 				std::forward_as_tuple(std::in_place_type_t<T> { },
 						std::forward<Args>(args)...));
-		return get<T>(pr.first->second);
+		return std::get<T>(pr.first->second);
 	}
 	template<typename T>
 	T& aquire(keyT key) {
-		return get<T>(objPtr()->find(key)->second);
+		return std::get<T>(objPtr()->find(key)->second);
 	}
 
 	void destroy(keyT key) {
@@ -144,4 +145,9 @@ struct persistentObjectManager {
 
 };
 
+}
+
+namespace inFileAllocatorNS{
+	using inFileAllocatorNS::detail::persistentObjectManager;
+	using inFileAllocatorNS::detail::anonymousObjectManager;
 }

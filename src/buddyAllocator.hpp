@@ -1,11 +1,12 @@
 #pragma once
-#include <sys/mman.h>
+#include <type_traits>
 #include <cstdint>
-#include <stdexcept>
-#include <utility>
-#include <array>
-#include <cstring>
+#include <cstddef>
 #include <list>
+#include <array>
+
+
+
 
 namespace inFileAllocatorNS {
 namespace detail {
@@ -39,7 +40,34 @@ static_assert(mylog2(64)==6);
 static_assert(mylog2(1024)==10);
 static_assert(mylog2(1023)==10);
 
-constexpr bool enableDebugLog = true;
+template<bool,typename policy>
+struct enableDebugLogPolicyInterm{
+	static constexpr bool value = policy::enableDebug;
+};
+
+template<typename policy>
+struct enableDebugLogPolicyInterm<false,policy>{
+	static constexpr bool value = false;
+};
+
+template<typename policy>
+struct enableDebugLogPolicy{
+	struct a{char a[1];};
+	struct b{char b[2];};
+	template<typename U>
+	static a f(decltype(U::enableDebug)*);
+
+	template<typename U>
+	static b f(...);
+
+	static constexpr bool hasThing = sizeof(f<policy>(nullptr)) == sizeof(a);
+	//static_assert(!hasThing);
+	static constexpr bool value = enableDebugLogPolicyInterm<hasThing,policy>::value;
+};
+
+template<typename policy>
+constexpr bool enableDebugLog = enableDebugLogPolicy<policy>::value;
+
 
 struct debugAction {
 	enum actionType {
@@ -258,7 +286,7 @@ private:
 			return blocks.first;
 		}
 		memBlock<size> *retPtr = getBlockFromFreePage(allocObj);
-		if constexpr (enableDebugLog) {
+		if constexpr (enableDebugLog<policy>) {
 			debugLog.add(debugAction::allocNewBlock, size,
 					reinterpret_cast<byteT*>(retPtr), 0);
 		}
@@ -275,9 +303,6 @@ private:
 			tmpPtr->makeUsed();
 			return tmpPtr;
 		} else {
-			if (first->nextBlock() == nullptr) {
-				std::cerr << "error here" << std::endl;
-			}
 			first = tmpPtr->nextBlock();
 
 			first->previousBlock() = nullptr;
@@ -305,7 +330,7 @@ public:
 				memBlock<size * 2> *basePtr =
 						reinterpret_cast<memBlock<size * 2>*>(std::min(buddy,
 								ptr));
-				if constexpr (enableDebugLog) {
+				if constexpr (enableDebugLog<policy>) {
 					debugLog.add(debugAction::combineBlocks, size, basePtr,
 							std::max(ptr, buddy));
 				}
@@ -350,7 +375,7 @@ public:
 				reinterpret_cast<memBlock<size / 2>*>(block);
 		memBlock<size / 2> *blockB = blockA + 1;
 
-		if constexpr (enableDebugLog) {
+		if constexpr (enableDebugLog<policy>) {
 			debugLog.add(debugAction::splitBlock, size / 2, blockA, blockB);
 		}
 
@@ -359,7 +384,7 @@ public:
 
 	byteT* getBlock(ANBFrefT allocObj) {
 		memBlock<size> *ptr = getFreeBlock(allocObj);
-		if constexpr (enableDebugLog) {
+		if constexpr (enableDebugLog<policy>) {
 			debugLog.add(debugAction::returnBlock, size, ptr, 0);
 		}
 		return ptr->data();

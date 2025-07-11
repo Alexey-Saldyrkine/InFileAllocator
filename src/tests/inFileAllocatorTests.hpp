@@ -27,17 +27,21 @@ struct fileManager {
 	}
 
 };
+template<size_t size>
+struct fileAllocatorTestPolicyDebug:fileAllocatorTestPolicy<size>{
+	static constexpr bool enableDebug = true;
+};
 
 TEST(inFileAllocator,basicUse) {
 	for (int k = 0; k < 1; k++) {
 		fileManager fm;
-		auto *manager = createInFileAllocatorManager<fileAllocatorTestPolicy>(
+		auto *manager = createInFileAllocatorManager<fileAllocatorTestPolicyDebug>(
 				fm.fd);
 		manager->clearFile();
 		autoGaurd gaurd([]() {
-			destroyInFileAllocatorManager<fileAllocatorTestPolicy>();
+			destroyInFileAllocatorManager<fileAllocatorTestPolicyDebug>();
 		});
-		inFileAllocator<byteT, fileAllocatorTestPolicy> alloc(manager);
+		inFileAllocator<byteT, fileAllocatorTestPolicyDebug> alloc(manager);
 		debugLog.clear();
 		buddyAllocatorBlockLog ledger;
 		memChecker memoryCheck;

@@ -9,7 +9,7 @@ template<size_t>
 struct fileAllocatorTestPolicy;
 
 template<typename ... Ts>
-using anonObjManager = anonymousobjectManager<fileAllocatorTestPolicy,size_t,Ts...>;
+using anonObjManager = anonymousObjectManager<fileAllocatorTestPolicy,size_t,Ts...>;
 
 TEST(anonymousObjManager,basicUse) {
 	for(int k=0;k<kCount;k++) {
@@ -48,7 +48,7 @@ TEST(anonymousObjManager,basicUse) {
 }
 
 template<typename T>
-using allocT = inAnonymousFileAllocator<T,fileAllocatorTestPolicy>;
+using allocT = AnonymousFileAllocator<T,fileAllocatorTestPolicy>;
 template<typename T>
 using scopedAllocT = std::scoped_allocator_adaptor<allocT<T>>;
 template<typename T>
