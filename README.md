@@ -20,7 +20,7 @@ Any other type of allocator can be used if it can expand and map a file on deman
   
 For details see docs.
 
-Example:
+### Example:
 Say you have a map<size_t,dataType> that is used as a small internal database for a process, and you want the database to be automatically loaded and saved to a file.
 
 We can use the persistentObjectManager to do this easily
@@ -36,10 +36,10 @@ Struct myPolicy{
 template<typename T>
 using AllocT = inFileAllocator<T,myPolicy>;
 //the allocator that the map will use.
-//if dataType allocates memory of its own, you would wrap inFileAllocator 
-//in a std::scoped_allocator_adapter.
+//if dataType allocates memory of its own, you would wrap inFileAllocator in a std::scoped_allocator_adapter.
 
 using mapAllocT = AllocT<std::pair<const size_t, dataType>>;
+//alloc for map
 
 using dataBaseT = std::map<size_t,dataType,std::less<size_t>,mapAllocT>;
 // type of the database, can be any container that takes an STL allocator
