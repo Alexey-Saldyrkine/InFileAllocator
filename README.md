@@ -1,4 +1,4 @@
-#InFileAllocator
+# InFileAllocator
 
 This repository aims to provide an easy way to manage objects constructed within a memory mapped file.
 
