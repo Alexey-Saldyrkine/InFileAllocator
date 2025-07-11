@@ -25,7 +25,7 @@ Say you have a map<size_t,dataType> that is used as a small internal database fo
 
 We can use the persistentObjectManager to do this easily
 
-'''Cpp
+```cpp
 //setup
 struct dataType; // arbitrary type that we want to map to.
 
@@ -73,5 +73,5 @@ close(fd);// fd needs to be valid for the manager, if any extension of the file 
 }
 
 
-''' 
+``` 
 
