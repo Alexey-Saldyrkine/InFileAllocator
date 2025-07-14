@@ -25,8 +25,8 @@ public:
 	operator managerT*() {
 		return manager;
 	}
-	anonymousObjectManager(byteT *ptr) {
-		manager = createAnonymousFileAllocatorManager<policy>(ptr);
+	anonymousObjectManager(void *ptr) {
+		manager = createAnonymousFileAllocatorManager<policy>(reinterpret_cast<byteT*>(ptr));
 		if (objPtr() == nullptr) {
 			byteT *tmp = manager->allocate(sizeof(mapT));
 			new (tmp) mapT(manager);
@@ -96,8 +96,8 @@ public:
 		objPtr() = reinterpret_cast<mapT*>(tmp);
 	}
 
-	persistentObjectManager(int fd, byteT *ptr) {
-		manager = createInFileAllocatorManager<policy>(fd, ptr);
+	persistentObjectManager(int fd, void *ptr) {
+		manager = createInFileAllocatorManager<policy>(fd, reinterpret_cast<byteT*>(ptr));
 		if (objPtr() == nullptr) {
 			constructMapObj();
 		}
@@ -112,6 +112,7 @@ public:
 		return manager;
 	}
 	void clearManager() {
+		objPtr()->~mapT();
 		manager->clearFile();
 		constructMapObj();
 	}
@@ -127,7 +128,7 @@ public:
 	}
 
 	template<typename T, typename ... Args>
-	T& aquireConstruct(keyT key, Args &&... args) {
+	T& acquireConstruct(keyT key, Args &&... args) {
 		auto pr = objPtr()->emplace(std::piecewise_construct,
 				std::forward_as_tuple(key),
 				std::forward_as_tuple(std::in_place_type_t<T> { },
@@ -135,7 +136,7 @@ public:
 		return std::get<T>(pr.first->second);
 	}
 	template<typename T>
-	T& aquire(keyT key) {
+	T& acquire(keyT key) {
 		return std::get<T>(objPtr()->find(key)->second);
 	}
 
@@ -147,7 +148,7 @@ public:
 
 }
 
-namespace inFileAllocatorNS{
-	using inFileAllocatorNS::detail::persistentObjectManager;
-	using inFileAllocatorNS::detail::anonymousObjectManager;
+namespace inFileAllocatorNS {
+using inFileAllocatorNS::detail::persistentObjectManager;
+using inFileAllocatorNS::detail::anonymousObjectManager;
 }

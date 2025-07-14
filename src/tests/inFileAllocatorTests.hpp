@@ -36,10 +36,10 @@ TEST(inFileAllocator,basicUse) {
 	for (int k = 0; k < 1; k++) {
 		fileManager fm;
 		auto *manager = createInFileAllocatorManager<fileAllocatorTestPolicyDebug>(
-				fm.fd);
+				fm.fd,testingAdrs);
 		manager->clearFile();
 		autoGaurd gaurd([]() {
-			destroyInFileAllocatorManager<fileAllocatorTestPolicyDebug>();
+			destroyInFileAllocatorManager<fileAllocatorTestPolicyDebug>(testingAdrs);
 		});
 		inFileAllocator<byteT, fileAllocatorTestPolicyDebug> alloc(manager);
 		debugLog.clear();
@@ -78,10 +78,10 @@ TEST(inFileAllocator,vectorOfType) {
 	for (int k = 0; k < kCount; k++) {
 		fileManager fm;
 		auto *manager = createInFileAllocatorManager<fileAllocatorTestPolicy>(
-				fm.fd);
+				fm.fd,testingAdrs);
 		manager->clearFile();
 		autoGaurd gaurd([]() {
-			destroyInFileAllocatorManager<fileAllocatorTestPolicy>();
+			destroyInFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 		});
 		srand(k * 8 + 16);
 		std::vector<T, inFileAllocator<T, fileAllocatorTestPolicy>> vec(
@@ -107,10 +107,10 @@ TEST(inFileAllocator,mapOfType) {
 	for (int k = 0; k < kCount; k++) {
 		fileManager fm;
 		auto *manager = createInFileAllocatorManager<fileAllocatorTestPolicy>(
-				fm.fd);
+				fm.fd,testingAdrs);
 		manager->clearFile();
 		autoGaurd gaurd([]() {
-			destroyInFileAllocatorManager<fileAllocatorTestPolicy>();
+			destroyInFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 		});
 
 		std::map<size_t, selfCheckT, std::less<size_t>,
@@ -135,10 +135,10 @@ TEST(inFileAllocator,unorderedMapOfType) {
 	for (int k = 0; k < kCount; k++) {
 		fileManager fm;
 		auto *manager = createInFileAllocatorManager<fileAllocatorTestPolicy>(
-				fm.fd);
+				fm.fd,testingAdrs);
 		manager->clearFile();
 		autoGaurd gaurd([]() {
-			destroyInFileAllocatorManager<fileAllocatorTestPolicy>();
+			destroyInFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 		});
 
 		std::unordered_map<size_t, selfCheckT, std::hash<size_t>,
@@ -176,10 +176,10 @@ TEST(inFileAllocator,mapOfvecOflistOfmap) {
 	for (int k = 0; k < kCount; k++) {
 		fileManager fm;
 		auto *manager = createInFileAllocatorManager<fileAllocatorTestPolicy>(
-				fm.fd);
+				fm.fd,testingAdrs);
 		manager->clearFile();
 		autoGaurd gaurd([]() {
-			destroyInFileAllocatorManager<fileAllocatorTestPolicy>();
+			destroyInFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 		});
 		srand(k * 5 + 21);
 		inmapT < invecT < inlistT<inmapT<selfCheckT>> >> obj(manager);

@@ -57,7 +57,7 @@ struct anonymousFileAllocatorManager {
 
 template<template<size_t> typename policy>
 anonymousFileAllocatorManager<policy>* createAnonymousFileAllocatorManager(
-		byteT *ptr = reinterpret_cast<byteT*>(0x04fffffff000)) {
+		byteT *ptr) {
 	void *ret = mmap(ptr, pageSize, PROT_READ | PROT_WRITE, MAP_SHARED |
 	MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 	if (ret == reinterpret_cast<void*>(-1)) {
@@ -69,8 +69,7 @@ anonymousFileAllocatorManager<policy>* createAnonymousFileAllocatorManager(
 }
 
 template<template<size_t> typename policy>
-void destroyAnonymousFileAllocatorManager(byteT *ptr =
-		reinterpret_cast<byteT*>(0x04fffffff000)) {
+void destroyAnonymousFileAllocatorManager(byteT *ptr) {
 	reinterpret_cast<anonymousFileAllocatorManager<policy>*>(ptr)->unmapPages();
 	munmap(ptr, pageSize);
 }
@@ -108,7 +107,7 @@ struct AnonymousFileAllocator: public std::pointer_traits<T*> {
 	}
 
 	void deallocate(T *ptr, size_t n) noexcept {
-		allocPtr->deallocate(reinterpret_cast<byteT*>(ptr), n);
+		allocPtr->deallocate(reinterpret_cast<byteT*>(ptr), n * sizeof(T));
 	}
 
 	template<typename U, typename ... Args>
@@ -212,7 +211,7 @@ struct inFileAllocatorManager {
 
 template<template<size_t> typename policy>
 inFileAllocatorManager<policy>* createInFileAllocatorManager(int fd,
-		byteT *ptr = reinterpret_cast<byteT*>(0x04fffffff000)) {
+		byteT *ptr) {
 	struct stat st;
 	fstat(fd, &st);
 	size_t fileSize = st.st_size;
@@ -246,8 +245,7 @@ inFileAllocatorManager<policy>* createInFileAllocatorManager(int fd,
 }
 
 template<template<size_t> typename policy>
-void destroyInFileAllocatorManager(byteT *ptr =
-		reinterpret_cast<byteT*>(0x04fffffff000)) {
+void destroyInFileAllocatorManager(byteT *ptr) {
 	reinterpret_cast<inFileAllocatorManager<policy>*>(ptr)->unmapPages();
 	munmap(ptr, pageSize);
 }
@@ -284,7 +282,7 @@ struct inFileAllocator: public std::pointer_traits<T*> {
 	}
 
 	void deallocate(T *ptr, size_t n) noexcept {
-		allocPtr->deallocate(reinterpret_cast<byteT*>(ptr), n);
+		allocPtr->deallocate(reinterpret_cast<byteT*>(ptr), n * sizeof(T));
 	}
 
 	template<typename U, typename ... Args>

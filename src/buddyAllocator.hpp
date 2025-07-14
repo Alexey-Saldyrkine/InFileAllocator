@@ -539,6 +539,7 @@ struct buddyAllocator {
 	static_assert(policies<0>::minAllocSize >= sizeof(memBlockInfo<0>), "min allocation size must be bigger or equal to sizeof memBlock<0>");
 	static_assert(isPow2(policies<0>::minAllocSize),"minAllocSize must be a power of 2");
 	static_assert(isPow2(policies<0>::maxAllocSize),"maxAllocSize must be a power of 2");
+	static_assert(policies<0>::minAllocSize <= policies<0>::maxAllocSize,"maxAllocSize is < minAllocSize");
 
 	using ANBFrefT = typename getTypeFromMemberPtr<decltype(allocNewBlockFunc)>::type&;
 

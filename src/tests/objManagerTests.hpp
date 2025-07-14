@@ -189,16 +189,16 @@ TEST(persistentObjeManager,basicUseNonPersistent) {
 	for(int k=0;k<kCount;k++) {
 		fileManager fm;
 		persObjManager<int,bool,double,selfCheckT> manager(fm.fd,adrs);
-		manager.clearManager();
+
 		srand(k*19+22);
 		int iValue = rand()%1000;
 		bool bValue = rand()%2;
 		double dValue = (rand()%5000) *0.01;
 		selfCheckT sValue = selfCheckT {};
-		int& i1 = manager.aquireConstruct<int>(1,iValue);
-		bool& b1 = manager.aquireConstruct<bool>(2,bValue);
-		double& d1 = manager.aquireConstruct<double>(3,dValue);
-		selfCheckT& s1 = manager.aquireConstruct<selfCheckT>(4,sValue);
+		int& i1 = manager.acquireConstruct<int>(1,iValue);
+		bool& b1 = manager.acquireConstruct<bool>(2,bValue);
+		double& d1 = manager.acquireConstruct<double>(3,dValue);
+		selfCheckT& s1 = manager.acquireConstruct<selfCheckT>(4,sValue);
 
 		ASSERT_EQ(i1,iValue);
 		ASSERT_EQ(b1,bValue);
@@ -206,10 +206,10 @@ TEST(persistentObjeManager,basicUseNonPersistent) {
 		ASSERT_EQ(s1,sValue);
 		ASSERT_TRUE(s1.check());
 
-		int& i2 = manager.aquire<int>(1);
-		bool& b2 = manager.aquire<bool>(2);
-		double& d2 = manager.aquire<double>(3);
-		selfCheckT& s2 = manager.aquire<selfCheckT>(4);
+		int& i2 = manager.acquire<int>(1);
+		bool& b2 = manager.acquire<bool>(2);
+		double& d2 = manager.acquire<double>(3);
+		selfCheckT& s2 = manager.acquire<selfCheckT>(4);
 
 		ASSERT_EQ(i1,i2);
 		ASSERT_EQ(b1,b2);
@@ -221,6 +221,7 @@ TEST(persistentObjeManager,basicUseNonPersistent) {
 		ASSERT_EQ(&d1,&d2);
 		ASSERT_EQ(&s1,&s2);
 
+		manager.clearManager();
 	}
 }
 TEST(persistentObjeManager,basicUse) {
@@ -233,10 +234,15 @@ TEST(persistentObjeManager,basicUse) {
 		fileManager fm;
 		persObjManager<int,bool,double,selfCheckT> manager(fm.fd,adrs);
 
-		int& i1 = manager.aquireConstruct<int>(1,0);
+		int& i1 = manager.acquireConstruct<int>(1,0);
 
 		ASSERT_EQ(i1,k);
 		i1++;
+	}
+	{
+		fileManager fm;
+		persObjManager<int,bool,double,selfCheckT> manager(fm.fd,adrs);
+		manager.clearManager();
 	}
 }
 
@@ -247,9 +253,9 @@ TEST(persistentObjeManager,mapOfvecOflistOfmapOftype) {
 		srand(k*16+25);
 		fileManager fm;
 		persObjManager<mapOfThings2> manager(fm.fd,adrs);
-		manager.clearManager();
-		mapOfThings2& obj = manager.aquireConstruct<mapOfThings2>(0,manager);
-		mapOfThings2& obj2 = manager.aquireConstruct<mapOfThings2>(1,manager);
+
+		mapOfThings2& obj = manager.acquireConstruct<mapOfThings2>(0,manager);
+		std::map<size_t,std::vector<std::list<std::map<size_t,selfCheckT>>>> obj2;
 
 		for (int i = 0; i < 10; i++) {
 			auto &vec = obj[i];
@@ -299,7 +305,10 @@ TEST(persistentObjeManager,mapOfvecOflistOfmapOftype) {
 
 		ASSERT_TRUE(allGood());
 		ASSERT_EQ(c, 10000);
+
+		manager.clearManager();
 	}
+
 }
 
 struct conDesCounter {
@@ -329,10 +338,9 @@ struct conDesCounter {
 TEST(persistentObjeManager,constructionDestructionCheck) {
 	fileManager fm;
 	persObjManager<invecT<conDesCounter>> manager(fm.fd,adrs);
-	manager.clearManager();
 
-	invecT<conDesCounter>& vec1 = manager.aquireConstruct<invecT<conDesCounter>>(1,manager);
-	invecT<conDesCounter>& vec2 = manager.aquireConstruct<invecT<conDesCounter>>(2,manager);
+	invecT<conDesCounter>& vec1 = manager.acquireConstruct<invecT<conDesCounter>>(1,manager);
+	invecT<conDesCounter>& vec2 = manager.acquireConstruct<invecT<conDesCounter>>(2,manager);
 
 	constexpr int l1 = 1000;
 	constexpr int l2 = 3000;
@@ -354,5 +362,7 @@ TEST(persistentObjeManager,constructionDestructionCheck) {
 	manager.destroy(2);
 	ASSERT_EQ(conDesCounter::curCount,0);
 	ASSERT_TRUE(conDesCounter::check());
+
+	manager.clearManager();
 }
 

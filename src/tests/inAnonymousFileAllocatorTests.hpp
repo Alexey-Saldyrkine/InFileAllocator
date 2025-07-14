@@ -8,6 +8,9 @@
 template<size_t size>
 struct testPolicyA;
 
+byteT* testingAdrs = reinterpret_cast<byteT*>(0x04fffffff000);
+//byteT* testingAdrs = reinterpret_cast<byteT*>(0x050000000000);
+
 template<typename F>
 struct autoGaurd {
 	F f;
@@ -21,9 +24,9 @@ struct autoGaurd {
 
 TEST(anonymousFileAllocator,basicUse) {
 	for (int k = 0; k < kCount; k++) {
-		auto *manager = createAnonymousFileAllocatorManager<testPolicyA>();
+		auto *manager = createAnonymousFileAllocatorManager<testPolicyA>(testingAdrs);
 		autoGaurd gaurd([]() {
-			destroyAnonymousFileAllocatorManager<testPolicyA>();
+			destroyAnonymousFileAllocatorManager<testPolicyA>(testingAdrs);
 		});
 		AnonymousFileAllocator<byteT, testPolicyA> alloc(manager);
 		debugLog.clear();
@@ -69,9 +72,9 @@ struct fileAllocatorTestPolicy {
 
 TEST(anonymousFileAllocator,basicVectorUse) {
 	auto *manager =
-			createAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+			createAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 	autoGaurd gaurd([]() {
-		destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+		destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 	});
 
 	std::vector<int, AnonymousFileAllocator<int, fileAllocatorTestPolicy>> vec(
@@ -117,9 +120,9 @@ TEST(anonymousFileAllocator,vectorOfType) {
 	using T = selfCheckT;
 	for (int k = 0; k < kCount; k++) {
 		auto *manager = createAnonymousFileAllocatorManager<
-				fileAllocatorTestPolicy>();
+				fileAllocatorTestPolicy>(testingAdrs);
 		autoGaurd gaurd([]() {
-			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 		});
 		srand(k * 8 + 16);
 		std::vector<T, AnonymousFileAllocator<T, fileAllocatorTestPolicy>> vec(
@@ -143,9 +146,9 @@ TEST(anonymousFileAllocator,vectorOfType) {
 
 TEST(anonymousFileAllocator,basicMap) {
 	auto *manager =
-			createAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+			createAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 	autoGaurd gaurd([]() {
-		destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+		destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 	});
 
 	std::map<size_t, size_t, std::less<size_t>,
@@ -168,9 +171,9 @@ TEST(anonymousFileAllocator,basicMap) {
 TEST(anonymousFileAllocator,mapOfType) {
 	for (int k = 0; k < kCount; k++) {
 		auto *manager = createAnonymousFileAllocatorManager<
-				fileAllocatorTestPolicy>();
+				fileAllocatorTestPolicy>(testingAdrs);
 		autoGaurd gaurd([]() {
-			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 		});
 
 		std::map<size_t, selfCheckT, std::less<size_t>,
@@ -194,9 +197,9 @@ TEST(anonymousFileAllocator,mapOfType) {
 TEST(anonymousFileAllocator,unorderedMapOfType) {
 	for (int k = 0; k < kCount; k++) {
 		auto *manager = createAnonymousFileAllocatorManager<
-				fileAllocatorTestPolicy>();
+				fileAllocatorTestPolicy>(testingAdrs);
 		autoGaurd gaurd([]() {
-			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 		});
 
 		std::unordered_map<size_t, selfCheckT, std::hash<size_t>,
@@ -232,9 +235,9 @@ using listT = std::list<T,scopedAllocT<T>>;
 
 TEST(anonymousFileAllocator,basicList) {
 	auto *manager =
-			createAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+			createAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 	autoGaurd gaurd([]() {
-		destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+		destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 	});
 
 	listT<int> list(manager);
@@ -257,9 +260,9 @@ TEST(anonymousFileAllocator,basicList) {
 
 TEST(anonymousFileAllocator,listOftype) {
 	auto *manager =
-			createAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+			createAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 	autoGaurd gaurd([]() {
-		destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+		destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 	});
 
 	listT<selfCheckT> list(manager);
@@ -283,9 +286,9 @@ TEST(anonymousFileAllocator,listOftype) {
 TEST(NestedAnonymousFileAllocator,vecOfvec) {
 	for (int k = 0; k < kCount; k++) {
 		auto *manager = createAnonymousFileAllocatorManager<
-				fileAllocatorTestPolicy>();
+				fileAllocatorTestPolicy>(testingAdrs);
 		autoGaurd gaurd([]() {
-			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 		});
 
 		vecT<vecT<selfCheckT>> vec(manager);
@@ -321,9 +324,9 @@ TEST(NestedAnonymousFileAllocator,vecOfvec) {
 TEST(NestedAnonymousFileAllocator,vecOfvecOfvec) {
 	for (int k = 0; k < kCount; k++) {
 		auto *manager = createAnonymousFileAllocatorManager<
-				fileAllocatorTestPolicy>();
+				fileAllocatorTestPolicy>(testingAdrs);
 		autoGaurd gaurd([]() {
-			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 		});
 
 		vecT<vecT<vecT<selfCheckT>>> vec(manager);
@@ -366,9 +369,9 @@ TEST(NestedAnonymousFileAllocator,vecOfvecOfvec) {
 TEST(NestedAnonymousFileAllocator,mapOfVector) {
 	for (int k = 0; k < kCount; k++) {
 		auto *manager = createAnonymousFileAllocatorManager<
-				fileAllocatorTestPolicy>();
+				fileAllocatorTestPolicy>(testingAdrs);
 		autoGaurd gaurd([]() {
-			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 		});
 
 		mapT<vecT<selfCheckT>> map(manager);
@@ -403,9 +406,9 @@ TEST(NestedAnonymousFileAllocator,mapOfVector) {
 TEST(NestedAnonymousFileAllocator,vectorOfMap) {
 	for (int k = 0; k < kCount; k++) {
 		auto *manager = createAnonymousFileAllocatorManager<
-				fileAllocatorTestPolicy>();
+				fileAllocatorTestPolicy>(testingAdrs);
 		autoGaurd gaurd([]() {
-			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 		});
 
 		vecT<mapT<selfCheckT>> vec(manager);
@@ -450,9 +453,9 @@ TEST(NestedAnonymousFileAllocator,vectorOfMap) {
 TEST(NestedAnonymousFileAllocator,mapOfmap) {
 	for (int k = 0; k < kCount; k++) {
 		auto *manager = createAnonymousFileAllocatorManager<
-				fileAllocatorTestPolicy>();
+				fileAllocatorTestPolicy>(testingAdrs);
 		autoGaurd gaurd([]() {
-			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 		});
 
 		mapT<mapT<selfCheckT>> map(manager);
@@ -498,9 +501,9 @@ TEST(NestedAnonymousFileAllocator,mapOfmap) {
 TEST(NestedAnonymousFileAllocator,mapOfvecOflistOfmap) {
 	for (int k = 0; k < kCount; k++) {
 		auto *manager = createAnonymousFileAllocatorManager<
-				fileAllocatorTestPolicy>();
+				fileAllocatorTestPolicy>(testingAdrs);
 		autoGaurd gaurd([]() {
-			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>();
+			destroyAnonymousFileAllocatorManager<fileAllocatorTestPolicy>(testingAdrs);
 		});
 		srand(k * 5 + 21);
 		mapT<vecT<listT<mapT<selfCheckT>>>> obj(manager);
