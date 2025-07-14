@@ -1,29 +1,29 @@
 # InFileAllocator
 
-This repository aims to provide an easy way to manage objects constructed within a memory mapped file.
+This repository aims to provide an easy way to manage objects constructed within a memory-mapped file.
 
-Objects that exist within a memory mapped file are not tied to the lifetime of the heap or stack. This allows them to persist beyond a programs lifetime, as with an unexpected crash, and keep themselves and their data intact for the next execution of the same or any other program. So long as all allocations are performed within the mapped area, and the file is mapped to the same address every time, all pointers and data will remain valid.
+Objects that exist within a memory-mapped file are not tied to the lifetime of the heap or stack. This allows them to persist beyond a process's lifetime, as with an unexpected crash, and keep themselves and their data intact for the next execution of the same or any other program. So long as all allocations are performed within the mapped area, and the file is mapped to the same address every time, all pointers and data will remain valid.
 
-For this the repository provides a couple of useful tools:
-- "persistentObjectManager", a manager that will map and unmap files, construct and destroy object within a file
-- "inFileAllocator", an STL compatible allocator that will automatically allocated to a file.
+For this, the repository provides a couple of useful tools:
+- "persistentObjectManager", a manager that will map and unmap files, construct and destroy objects within a file
+- "inFileAllocator", an STL-compatible allocator that will automatically allocate to a file.
 
-A swell as mirror version of those types for allocating to an anonymous file instead of a real file.
-These will not persist beyond a process lifetime, but can be used as an alternative to allocating on heap, or as a way to manage shared memory between processes.
+As well as mirror versions of those types for allocating to an anonymous file instead of a real file.
+These will not persist beyond a process lifetime, but can be used as an alternative to allocating on the heap, or as a way to manage shared memory between processes.
 
 They are:
 - "anonymousObjectmanager"
 - "anonymousFileAllocator"
 
-For the management of allocated memory a buddy allocator is provided. Which has customizable policy settings to configure the allocator.
+For the management of allocated memory, a buddy allocator is provided. It has customizable policy settings to configure the allocator.
 Any other type of allocator can be used if it can expand and map a file on demand.
   
-For details see docs.
+For details see the docs.
 
 ### Example:
-Say you have a map<size_t,dataType> that is used as a small internal database for a process, and you want the database to be automatically loaded and saved to a file.
+Say you have a map<size_t, dataType> that is used as a small internal database for a process, and you want the database to be automatically loaded and saved to a file.
 
-We can use the persistentObjectManager to do this easily
+We can use the persistentObjectManager to do this easily.
 
 ```cpp
 //setup
@@ -49,15 +49,15 @@ using managerT = persistentObjectManager<myPolicy,size_t,dataType>;
 
 int main(){
 
-int fd = getFD(...); // can be any function or way that obtains a file descriptor to the underline file.
+int fd = getFD(...); // can be any function or way that obtains a file descriptor to the underlying file.
 
-managerT manager(fd,adrs); //will map the fd to adrs. See docs for requirements for adrs.
+managerT manager(fd,adrs); //will map the fd to adrs. See the docs for requirements for adrs.
 
-dataBaseT& db = manager.aquireConstruct<dataBaseT>(0,manager);
+dataBaseT& db = manager.acquireConstruct<dataBaseT>(0, manager);
 //here 0 is the key to a specific dataBaseT object.
-//here it calls the constructer of dataBaseT with the argument being 'manager'.
+//here it calls the constructor of dataBaseT with the argument being 'manager'.
 //'manager' will be converted to a mapAllocT that will be used in the constructor.
-//notice that db is a reference, if it was not then db would copy the object in the file.
+//notice that db is a reference, if it were not then db would copy the object in the file.
 
 
 
