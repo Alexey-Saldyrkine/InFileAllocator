@@ -39,7 +39,7 @@ There are two member functions to acquire objects: acquire and acquireConstruct.
 
 - acquire<T>(keyT key) - returns a reference to the object, of type T, that key refers to. If there is no object referred to by the key or the object is a different type than T, then an error occurs. T must be one of the types in the Ts... pack.
 
--acquireConstruct<T>(keyT key, args...) - same as acquire, but if the key does not refer to any object, then an object of type T is constructed with the arguments args... forwarded.
+- acquireConstruct<T>(keyT key, args...) - same as acquire, but if the key does not refer to any object, then an object of type T is constructed with the arguments args... forwarded.
 
 To remove an object from the manager there is the member function destroy.
 - destroy(keyT key) - will remove the object from the manager. The proper destructor for the object referred to by key will be called.
